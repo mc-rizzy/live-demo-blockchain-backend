@@ -50,6 +50,15 @@ async function initMongo() {
   }
 }
 
+// Put this high up in server.js before your security/validation middleware
+app.get('/', (req, res) => {
+  res.status(200).send({ status: 'healthy', message: 'Blockchain node is running' });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 async function updateStats(updateFields, currentChainLength) {
   if (!statsCollection) return;
   try {
@@ -428,7 +437,7 @@ async function main() {
   await initMongo();
   const node = await startNode({
     port: Number(process.env.PORT || 3000),
-    host: process.env.HOST || '127.0.0.1',
+    host: process.env.HOST || '0.0.0.0',
   });
   console.log(`Node running securely at ${node.url} with DAA & Cumulative Consensus`);
 }
