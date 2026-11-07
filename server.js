@@ -9,7 +9,7 @@ const { MongoClient } = require('mongodb');
 
 require('dotenv').config({ path: './config.env' });
 
-const INITIAL_DIFFICULTY = 3;
+const INITIAL_DIFFICULTY = 5;
 const MAX_BLOCKS = 256;
 const MAX_DATA_BYTES = 1024;
 const MAX_MINING_PACE_MS = 1000;
