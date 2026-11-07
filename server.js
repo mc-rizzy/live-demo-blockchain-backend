@@ -327,7 +327,7 @@ async function startNode(options = {}) {
   const peerUrls = options.peers ?? [];
   const blockchain = new Blockchain();
   const peerConnections = [];
-  const blacklistedIps = new Set();
+  const blacklistedIps = new Map();
 
   const app = express();
 
@@ -376,20 +376,55 @@ async function startNode(options = {}) {
       if (typeof acknowledge === 'function') acknowledge(state);
     });
 
+    // socket.on('chain:propose', (payload, acknowledge) => {
+    //   const decision = blockchain.replace(payload?.blocks);
+    //   if (!decision.accepted && decision.reason === 'invalid') {
+    //     invalidSubmissions++;
+    //     if (invalidSubmissions >= 3) {
+    //       const clientIp = socket.handshake.address;
+    //       blacklistedIps.add(clientIp);
+    //       console.warn(`🚨 Blacklisted malicious peer IP: ${clientIp}`);
+    //       socket.disconnect(true);
+    //       return;
+    //     }
+    //   }
+    //   socket.emit('chain:result', decision);
+    //   if (typeof acknowledge === 'function') acknowledge(decision);
+    // });
+
     socket.on('chain:propose', (payload, acknowledge) => {
       const decision = blockchain.replace(payload?.blocks);
       if (!decision.accepted && decision.reason === 'invalid') {
         invalidSubmissions++;
-        if (invalidSubmissions >= 3) {
+        if (invalidSubmissions >= 5) { // Increased threshold to 5
           const clientIp = socket.handshake.address;
-          blacklistedIps.add(clientIp);
-          console.warn(`🚨 Blacklisted malicious peer IP: ${clientIp}`);
-          socket.disconnect(true);
-          return;
+          
+          // DO NOT blacklist localhost/loopback
+          if (clientIp !== '127.0.0.1' && clientIp !== '::1') {
+            // Ban for 5 minutes instead of permanently
+            const banDurationMs = 5 * 60 * 1000;
+            blacklistedIps.set(clientIp, Date.now() + banDurationMs);
+            console.warn(`🚨 Temporarily blacklisted peer IP: ${clientIp} for 5 minutes`);
+            socket.disconnect(true);
+            return;
+          }
         }
       }
       socket.emit('chain:result', decision);
       if (typeof acknowledge === 'function') acknowledge(decision);
+    });
+
+    socketServer.use((socket, next) => {
+        const clientIp = socket.handshake.address;
+        const expiry = blacklistedIps.get(clientIp);
+        if (expiry) {
+        if (Date.now() < expiry) {
+            return next(new Error('Blacklisted due to malicious activity. Try again later.'));
+        } else {
+            blacklistedIps.delete(clientIp); // Expired, lift ban
+        }
+        }
+        next();
     });
 
     socket.on('mine:start', async (payload, acknowledge) => {
