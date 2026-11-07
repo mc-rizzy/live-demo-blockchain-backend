@@ -50,15 +50,6 @@ async function initMongo() {
   }
 }
 
-// Put this high up in server.js before your security/validation middleware
-app.get('/', (req, res) => {
-  res.status(200).send({ status: 'healthy', message: 'Blockchain node is running' });
-});
-
-app.get('/health', (req, res) => {
-  res.status(200).send('OK');
-});
-
 async function updateStats(updateFields, currentChainLength) {
   if (!statsCollection) return;
   try {
@@ -339,6 +330,16 @@ async function startNode(options = {}) {
   const blacklistedIps = new Set();
 
   const app = express();
+
+  // Put this high up in server.js before your security/validation middleware
+    app.get('/', (req, res) => {
+    res.status(200).send({ status: 'healthy', message: 'Blockchain node is running' });
+    });
+
+    app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+    });
+
   app.get(['/', '/api/chain'], (_req, res) => res.json(blockchain.toJSON()));
 
   const server = http.createServer(app);
